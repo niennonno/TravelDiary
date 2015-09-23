@@ -1,10 +1,12 @@
 package com.mapplinks.traveldiary;
 
+import android.content.DialogInterface;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
@@ -16,9 +18,10 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback,
@@ -27,6 +30,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private static final String TAG ="MAIN ACTIVITY";
     private GoogleMap mMap;
     private GoogleApiClient mGoogleApiClient;
+    private HashMap<String,Memory> mMemories = new HashMap<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,7 +39,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         MapFragment mapFragment = (MapFragment)getFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
-        addGoogleAPIClient();
+//        addGoogleAPIClient();
     }
 
      private void addGoogleAPIClient(){
@@ -49,7 +53,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onStart() {
         super.onStart();
-      mGoogleApiClient.connect();
+//      mGoogleApiClient.connect();
     }
 
     @Override
@@ -57,6 +61,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mMap=googleMap;
         mMap.setMyLocationEnabled(true);
         mMap.setOnMapClickListener(this);
+        mMap.setInfoWindowAdapter(new MarkerAdapter(getLayoutInflater(),mMemories));
 
     }
 
@@ -71,12 +76,24 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
 
         Address bestMatch=(matches.isEmpty())?null:matches.get(0);
+        Log.d("OnMapClick","Address: "+bestMatch);
         int maxLines= bestMatch.getMaxAddressLineIndex();
 
-        mMap.addMarker(new MarkerOptions()
-       .position(latLng)
-       .title(bestMatch.getAddressLine(maxLines-1))
-       .snippet(bestMatch.getAddressLine(maxLines)));
+        Memory memory=new Memory();
+        memory.city=bestMatch.getLocality();
+        memory.country=bestMatch.getCountryName();
+        memory.latitude=latLng.latitude;
+        memory.longitude=latLng.longitude;
+        memory.notes="Something relevant";
+
+        new MemoryDialogFragment().show(getFragmentManager(),"MemoryDialog");
+
+        Marker marker= mMap.addMarker(new MarkerOptions()
+                .position(latLng));
+
+        mMemories.put(marker.getId(),memory);
+
+
     }
 
     @Override
@@ -87,8 +104,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onConnected(Bundle bundle) {
         Location location=LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
-        double latitude = location.getLatitude();
-        double longitude = location.getLongitude();
+//        double latitude = location.getLatitude();
+//        double longitude = location.getLongitude();
     }
 
     @Override
