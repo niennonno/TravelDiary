@@ -1,12 +1,10 @@
 package com.mapplinks.traveldiary;
 
-import android.content.DialogInterface;
+
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
-import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
-import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
@@ -24,7 +22,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements OnMapReadyCallback,
+public class MainActivity extends AppCompatActivity implements OnMapReadyCallback,MemoryDialogFragment.Listener,
         GoogleMap.OnMapClickListener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener{
 
     private static final String TAG ="MAIN ACTIVITY";
@@ -85,15 +83,20 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         memory.country=bestMatch.getCountryName();
         memory.latitude=latLng.latitude;
         memory.longitude=latLng.longitude;
-        memory.notes="Something relevant...";
 
-        MemoryDialogFragment.newInstance(memory).show(getFragmentManager(),"MemoryDialog");
+        MemoryDialogFragment.newInstance(memory).show(getFragmentManager(), "MemoryDialog");
+    }
 
+    @Override
+    public void onSaveClicked(Memory memory) {
         Marker marker= mMap.addMarker(new MarkerOptions()
-                .position(latLng));
+                .position(new LatLng(memory.latitude,memory.longitude)));
 
-        mMemories.put(marker.getId(),memory);
+        mMemories.put(marker.getId(), memory);
+    }
 
+    @Override
+    public void OnCancelClicked(Memory memory) {
 
     }
 
@@ -113,9 +116,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void onConnectionSuspended(int i) {
 
     }
-
-
-
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
