@@ -1,9 +1,11 @@
 package com.mapplinks.traveldiary;
 
+import java.io.Serializable;
+
 /**
  * Created by Aditya Vikram on 9/21/2015.
  */
-public class Memory {
+public class Memory implements Serializable{
     double latitude;
     double longitude;
     String city;

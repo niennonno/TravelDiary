@@ -80,13 +80,14 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         int maxLines= bestMatch.getMaxAddressLineIndex();
 
         Memory memory=new Memory();
-        memory.city=bestMatch.getLocality();
+        memory.city=bestMatch.getAddressLine(maxLines - 1);
+        //memory.city=matches.get(0).getLocality();
         memory.country=bestMatch.getCountryName();
         memory.latitude=latLng.latitude;
         memory.longitude=latLng.longitude;
-        memory.notes="Something relevant";
+        memory.notes="Something relevant...";
 
-        new MemoryDialogFragment().show(getFragmentManager(),"MemoryDialog");
+        MemoryDialogFragment.newInstance(memory).show(getFragmentManager(),"MemoryDialog");
 
         Marker marker= mMap.addMarker(new MarkerOptions()
                 .position(latLng));
