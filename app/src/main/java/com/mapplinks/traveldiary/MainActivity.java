@@ -1,10 +1,13 @@
 package com.mapplinks.traveldiary;
 
 
+import android.content.DialogInterface;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
@@ -23,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback,MemoryDialogFragment.Listener,
+        GoogleMap.OnMarkerDragListener, GoogleMap.OnInfoWindowClickListener,
         GoogleMap.OnMapClickListener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener{
 
     private static final String TAG ="MAIN ACTIVITY";
@@ -42,13 +46,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 //        addGoogleAPIClient();
     }
 
-     private void addGoogleAPIClient(){
-         mGoogleApiClient = new GoogleApiClient.Builder(this)
-                 .addConnectionCallbacks(this)
-                 .addOnConnectionFailedListener(this)
-                 .addApi(LocationServices.API)
-                 .build();
-    }
+
 
     @Override
     protected void onStart() {
@@ -62,40 +60,46 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mMap.setMyLocationEnabled(true);
         mMap.setOnMapClickListener(this);
         mMap.setInfoWindowAdapter(new MarkerAdapter(getLayoutInflater(), mMemories));
-        List<Memory> memories = mDataSource.getAllMemories();
+        mMap.setOnMarkerDragListener(this);
+        mMap.setOnInfoWindowClickListener(this);
+        new AsyncTask<Void, Void, List<Memory>>(){
+            @Override
+            protected List<Memory> doInBackground(Void... params) {
+                return mDataSource.getAllMemories();
+            }
+
+            @Override
+            protected void onPostExecute(List<Memory> memories) {
+                onFetchedMemories(memories);
+            }
+        }.execute();
+    }
+
+    private void onFetchedMemories(List<Memory>memories) {
+        for (Memory memory:memories){
+             addMarker(memory);
+        }
     }
 
     @Override
     public void onMapClick(LatLng latLng) {
-        Geocoder geocoder=new Geocoder(this);
-        List<Address> matches=null;
-        try {
-            matches=geocoder.getFromLocation(latLng.latitude,latLng.longitude,1);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        Address bestMatch=(matches.isEmpty())?null:matches.get(0);
-        Log.d("OnMapClick","Address: "+bestMatch);
-        int maxLines= bestMatch.getMaxAddressLineIndex();
-
         Memory memory=new Memory();
-        memory.city=bestMatch.getAddressLine(maxLines - 1);
-        //memory.city=matches.get(0).getLocality();
-        memory.country=bestMatch.getCountryName();
-        memory.latitude=latLng.latitude;
-        memory.longitude=latLng.longitude;
-
+        updateMemoryPosition(memory, latLng);
         MemoryDialogFragment.newInstance(memory).show(getFragmentManager(), "MemoryDialog");
-
-
+        MemoriesDataSource dataSource = new MemoriesDataSource(this);
         
 
     }
 
     @Override
     public void onSaveClicked(Memory memory) {
+        addMarker(memory);
+        mDataSource.createMemory(memory);
+    }
+
+    private void addMarker(Memory memory) {
         Marker marker= mMap.addMarker(new MarkerOptions()
+                .draggable(true)
                 .position(new LatLng(memory.latitude,memory.longitude)));
 
         mMemories.put(marker.getId(), memory);
@@ -121,6 +125,70 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onConnectionSuspended(int i) {
 
+    }
+
+    private void addGoogleAPIClient(){
+        mGoogleApiClient = new GoogleApiClient.Builder(this)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .addApi(LocationServices.API)
+                .build();
+    }
+
+    @Override
+    public void onMarkerDragStart(Marker marker) {
+
+    }
+
+    @Override
+    public void onMarkerDrag(Marker marker) {
+
+    }
+
+    @Override
+    public void onMarkerDragEnd(Marker marker) {
+        Memory memory = mMemories.get(marker.getId());
+        updateMemoryPosition(memory,marker.getPosition());
+        mDataSource.updateMemory(memory);
+    }
+
+    private void updateMemoryPosition(Memory memory, LatLng latLng) {
+        Geocoder geocoder=new Geocoder(this);
+        List<Address> matches=null;
+        try {
+            matches=geocoder.getFromLocation(latLng.latitude,latLng.longitude,1);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        Address bestMatch=(matches.isEmpty())?null:matches.get(0);
+        Log.d("OnMapClick", "Address: " + bestMatch);
+        int maxLines= bestMatch.getMaxAddressLineIndex();
+
+
+        memory.city=bestMatch.getAddressLine(maxLines - 1);
+        //memory.city=matches.get(0).getLocality();
+        memory.country=bestMatch.getCountryName();
+        memory.latitude=latLng.latitude;
+        memory.longitude=latLng.longitude;
+    }
+
+    @Override
+    public void onInfoWindowClick(final Marker marker) {
+        final Memory memory = mMemories.get(marker.getId());
+        String[] actions = {"Edit", "Delete"};
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(memory.city+", "+memory.country)
+                .setItems(actions, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        if(which==1){
+                            marker.remove();
+                            mDataSource.deleteMemory(memory);
+                        }
+                    }
+                });
+        builder.create().show();
     }
 
     @Override
