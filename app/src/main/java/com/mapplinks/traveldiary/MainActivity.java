@@ -1,11 +1,13 @@
 package com.mapplinks.traveldiary;
 
 
+import android.app.LoaderManager;
 import android.content.DialogInterface;
+import android.content.Loader;
+import android.database.Cursor;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -27,9 +29,9 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback,MemoryDialogFragment.Listener,
         GoogleMap.OnMarkerDragListener, GoogleMap.OnInfoWindowClickListener,
-        GoogleMap.OnMapClickListener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener{
+        GoogleMap.OnMapClickListener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener,
+        LoaderManager.LoaderCallbacks<Cursor>{
 
-    private static final String TAG ="MAIN ACTIVITY";
     private GoogleMap mMap;
     private GoogleApiClient mGoogleApiClient;
     private HashMap<String,Memory> mMemories = new HashMap<>();
@@ -40,39 +42,28 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        MapFragment mapFragment = (MapFragment)getFragmentManager().findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
         mDataSource = new MemoriesDataSource(this);
-//        addGoogleAPIClient();
+        getLoaderManager().initLoader(0,null,this);
+
+        MapFragment mapFragment = (MapFragment)getFragmentManager().findFragmentById(R.id.map);
+        mMap=mapFragment.getMap();
+        onMapReady(mMap);
     }
-
-
 
     @Override
     protected void onStart() {
         super.onStart();
-//      mGoogleApiClient.connect();
     }
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
-        mMap=googleMap;
         mMap.setMyLocationEnabled(true);
         mMap.setOnMapClickListener(this);
         mMap.setInfoWindowAdapter(new MarkerAdapter(getLayoutInflater(), mMemories));
         mMap.setOnMarkerDragListener(this);
         mMap.setOnInfoWindowClickListener(this);
-        new AsyncTask<Void, Void, List<Memory>>(){
-            @Override
-            protected List<Memory> doInBackground(Void... params) {
-                return mDataSource.getAllMemories();
-            }
 
-            @Override
-            protected void onPostExecute(List<Memory> memories) {
-                onFetchedMemories(memories);
-            }
-        }.execute();
+
     }
 
     private void onFetchedMemories(List<Memory>memories) {
@@ -86,15 +77,28 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         Memory memory=new Memory();
         updateMemoryPosition(memory, latLng);
         MemoryDialogFragment.newInstance(memory).show(getFragmentManager(), "MemoryDialog");
-        MemoriesDataSource dataSource = new MemoriesDataSource(this);
-        
-
     }
 
     @Override
     public void onSaveClicked(Memory memory) {
         addMarker(memory);
         mDataSource.createMemory(memory);
+    }
+
+    @Override
+    public Loader<Cursor> onCreateLoader(int id, Bundle args) {
+        return new MemoriesLoader(this, mDataSource);
+    }
+
+    @Override
+    public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
+        onFetchedMemories(mDataSource.cursorToMemories(data));
+
+    }
+
+    @Override
+    public void onLoaderReset(Loader<Cursor> loader) {
+
     }
 
     private void addMarker(Memory memory) {
@@ -118,8 +122,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onConnected(Bundle bundle) {
         Location location=LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
-//        double latitude = location.getLatitude();
-//        double longitude = location.getLongitude();
+        double latitude = location.getLatitude();
+        double longitude = location.getLongitude();
     }
 
     @Override
